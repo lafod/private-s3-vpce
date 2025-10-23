@@ -77,7 +77,7 @@ module "alb" {
   s3_vpce_nr_ips          = length(var.private_subnet_ids)
   execute_api_vpce_id     = try(module.vpce["execute-api"].id, null)
   execute_api_vpce_nr_ips = length(var.private_subnet_ids)
-  attach_api              = var.include_pre_signed_url
+  attach_api              = var.deploy_api
   domain_name             = var.domain_name
   hosted_zone_id          = var.hosted_zone_id
 }
