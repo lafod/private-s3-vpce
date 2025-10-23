@@ -56,37 +56,6 @@ resource "aws_lb_target_group_attachment" "s3" {
   target_id        = flatten(data.aws_network_interface.s3_vpce_enis[*].private_ips)[count.index]
 }
 
-# Execute API
-resource "aws_lb_target_group" "execute_api" {
-  count       = var.attach_api ? 1 : 0
-  name        = "AlbExecuteApiTargetGroup"
-  target_type = "ip"
-  port        = 443
-  protocol    = "HTTPS"
-  vpc_id      = var.vpc_id
-
-  health_check {
-    matcher  = "200,403"
-    protocol = "HTTPS"
-  }
-}
-
-data "aws_vpc_endpoint" "execute_api_vpce" {
-  count = var.attach_api ? 1 : 0
-  id    = var.execute_api_vpce_id
-}
-
-data "aws_network_interface" "execute_api_vpce_enis" {
-  count = var.attach_api ? var.execute_api_vpce_nr_ips : 0
-  id    = flatten(data.aws_vpc_endpoint.execute_api_vpce[0].network_interface_ids)[count.index]
-}
-
-resource "aws_lb_target_group_attachment" "execute_api" {
-  count            = var.attach_api ? var.execute_api_vpce_nr_ips : 0
-  target_group_arn = aws_lb_target_group.execute_api[0].arn
-  target_id        = flatten(data.aws_network_interface.execute_api_vpce_enis[*].private_ips)[count.index]
-}
-
 # APPLICATION LOAD BALANCER
 resource "aws_lb" "alb" {
   name = "AlbS3Vpce"
@@ -124,7 +93,7 @@ resource "aws_lb_listener_rule" "api_rule" {
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.execute_api[0].arn
+    target_group_arn = aws_lb_target_group.lambda[0].arn
   }
 
   condition {

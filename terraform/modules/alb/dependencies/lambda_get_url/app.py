@@ -111,4 +111,8 @@ def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Any:
     Returns:
         Any: API response
     """
+    logger.info(f"Lambda function name: {AWS_LAMBDA_FUNCTION_NAME}")
+    logger.info(f"Bucket name: {S3_BUCKET_NAME}")
+    logger.info(f"Endpoint URL: {S3_ENDPOINT_URL}")
+    logger.info(f"Event: {event}")
     return app.resolve(event, context)

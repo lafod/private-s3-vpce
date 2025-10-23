@@ -16,6 +16,21 @@ variable "target_security_group_ids" {
   description = "IDs of security groups which the ALB should be allowed to access on port 443"
 }
 
+variable "s3_bucket_name" {
+  type        = string
+  description = "Name of the S3 bucket"
+}
+
+variable "s3_endpoint_url" {
+  type        = string
+  description = "Endpoint URL to be used for the S3 bucket"
+}
+
+variable "s3_kms_key_arn" {
+  type        = string
+  description = "ARN of the KMS key that is used for encrypting S3 bucket contents"
+}
+
 variable "s3_vpce_id" {
   type        = string
   description = "ID of the S3 VPC endpoint"

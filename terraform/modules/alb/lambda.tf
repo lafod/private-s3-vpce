@@ -20,18 +20,21 @@ data "aws_iam_policy_document" "assume_role" {
 }
 
 resource "aws_iam_role" "get_url_role" {
+  count        = var.attach_api ? 1 : 0
   name               = "GetS3VpceUrlRole"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_basic_execution_role_attachment" {
+  count        = var.attach_api ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-  role       = aws_iam_role.get_url_role.id
+  role       = aws_iam_role.get_url_role[0].id
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_eni_management_role_attachment" {
+  count        = var.attach_api ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaENIManagementAccess"
-  role       = aws_iam_role.get_url_role.id
+  role       = aws_iam_role.get_url_role[0].id
 }
 
 data "aws_iam_policy_document" "allow_s3_access" {
@@ -49,8 +52,9 @@ data "aws_iam_policy_document" "allow_s3_access" {
 }
 
 resource "aws_iam_role_policy" "s3_policy" {
+  count        = var.attach_api ? 1 : 0
   name   = "GetS3VpceUrlRoleS3Policy"
-  role   = aws_iam_role.get_url_role.id
+  role   = aws_iam_role.get_url_role[0].id
   policy = data.aws_iam_policy_document.allow_s3_access.json
 }
 
@@ -65,12 +69,14 @@ data "aws_iam_policy_document" "allow_kms_decrypt" {
 }
 
 resource "aws_iam_role_policy" "kms_policy" {
+  count        = var.attach_api ? 1 : 0
   name   = "GetS3VpceUrlRoleKmsDecryptPolicy"
-  role   = aws_iam_role.get_url_role.id
+  role   = aws_iam_role.get_url_role[0].id
   policy = data.aws_iam_policy_document.allow_kms_decrypt.json
 }
 
 resource "aws_security_group" "lambda_sg" {
+  count        = var.attach_api ? 1 : 0
   name        = "GetS3VpceLambdaSecurityGroup"
   description = "Allow TLS outbound traffic"
   vpc_id      = var.vpc_id
@@ -85,12 +91,13 @@ resource "aws_security_group" "lambda_sg" {
 }
 
 resource "aws_lambda_function" "get_url" {
+  count        = var.attach_api ? 1 : 0
   function_name    = "GetS3VpceUrlLambdaFunction"
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   runtime          = "python3.11"
   handler          = "app.lambda_handler"
-  role             = aws_iam_role.get_url_role.arn
+  role             = aws_iam_role.get_url_role[0].arn
   memory_size      = 128
   timeout          = 15
 
@@ -106,17 +113,28 @@ resource "aws_lambda_function" "get_url" {
 
   vpc_config {
     subnet_ids         = var.subnet_ids
-    security_group_ids = [aws_security_group.lambda_sg.id]
+    security_group_ids = [aws_security_group.lambda_sg[0].id]
   }
 }
 
-resource "aws_lambda_permission" "permission" {
-  statement_id  = "AllowAPIGatewayInvoke"
+resource "aws_lambda_permission" "with_lambda" {
+  count        = var.attach_api ? 1 : 0
+  statement_id  = "AllowExecutionFromlambda"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.get_url.function_name
-  principal     = "apigateway.amazonaws.com"
+  function_name = aws_lambda_function.get_url[0].function_name
+  principal     = "elasticloadbalancing.amazonaws.com"
+  source_arn    = aws_lb_target_group.lambda[0].arn
+}
 
-  # The /*/* portion grants access from any method on any resource
-  # within the API Gateway "REST API".
-  source_arn = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
+resource "aws_lb_target_group" "lambda" {
+  count        = var.attach_api ? 1 : 0
+  name        = "AlbLambdaTargetGroup"
+  target_type = "lambda"
+}
+
+resource "aws_lb_target_group_attachment" "lambda" {
+  count        = var.attach_api ? 1 : 0
+  target_group_arn = aws_lb_target_group.lambda[0].arn
+  target_id        = aws_lambda_function.get_url[0].arn
+  depends_on       = [aws_lambda_permission.with_lambda]
 }

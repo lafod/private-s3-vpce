@@ -3,8 +3,7 @@
 
 locals {
   vpce_services = compact([
-    "s3",
-    var.deploy_api ? "execute-api" : null
+    "s3"
   ])
 
   bucket_name = try(var.domain_name, "s3-private-vpce-${data.aws_caller_identity.current.account_id}")
@@ -57,26 +56,12 @@ module "s3" {
   bucket_name = local.bucket_name
   s3_vpce_id  = module.vpce["s3"].id
   s3_access_allowed_roles = concat(
-    var.s3_access_allowed_roles,
-    var.deploy_api ? [module.api[0].lambda_role_arn] : []
+    var.s3_access_allowed_roles
   )
   s3_access_allow_aws_services         = var.s3_access_allow_aws_services
   s3_access_allowed_service_principals = var.s3_access_allowed_service_principals
 }
 
-module "api" {
-  count  = var.deploy_api ? 1 : 0
-  source = "./modules/api"
-
-  vpc_id     = var.vpc_id
-  subnet_ids = var.private_subnet_ids
-
-  domain_name         = var.domain_name
-  s3_bucket_name      = module.s3.bucket_name
-  s3_kms_key_arn      = module.s3.kms_key_arn
-  s3_endpoint_url     = var.domain_name != null ? var.domain_name : replace(module.vpce["s3"].dns_name, "*", "bucket")
-  execute_api_vpce_id = module.vpce["execute-api"].id
-}
 
 module "alb" {
   count  = local.deploy_alb ? 1 : 0
@@ -85,12 +70,14 @@ module "alb" {
   vpc_id                    = var.vpc_id
   subnet_ids                = var.alb_subnet_ids
   target_security_group_ids = [aws_security_group.vpce_sg.id]
-
+  s3_bucket_name          = module.s3.bucket_name
+  s3_kms_key_arn          = module.s3.kms_key_arn
+  s3_endpoint_url         = var.domain_name != null ? var.domain_name : replace(module.vpce["s3"].dns_name, "*", "bucket")
   s3_vpce_id              = module.vpce["s3"].id
   s3_vpce_nr_ips          = length(var.private_subnet_ids)
   execute_api_vpce_id     = try(module.vpce["execute-api"].id, null)
   execute_api_vpce_nr_ips = length(var.private_subnet_ids)
-  attach_api              = var.deploy_api
+  attach_api              = var.include_pre_signed_url
   domain_name             = var.domain_name
   hosted_zone_id          = var.hosted_zone_id
 }

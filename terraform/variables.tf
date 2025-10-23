@@ -46,14 +46,15 @@ variable "domain_name" {
   description = "Domain name for the ALB. If set, will set up an ALB, configure TLS certificate for the ALB (stored in ACM), and set up Route 53 alias, if the hosted_zone_id is set as well."
 }
 
-variable "deploy_api" {
-  type        = bool
-  default     = true
-  description = "Deploys an API GW with a Lambda route that generates a pre-signed URL for an object in the bucket. Will be integrated in the ALB in /api/* routes."
-}
 
 variable "hosted_zone_id" {
   type        = string
   default     = null
   description = "If hosted_zone_id is set and domain_name is set, will configure a Route 53 DNS entry for the ALB"
+}
+
+variable "include_pre_signed_url" {
+  type        = bool
+  default     = true
+  description = "Whether or not service should include a lambda function for S3 pre signed url creation"
 }

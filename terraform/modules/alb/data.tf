@@ -5,6 +5,8 @@ data "aws_vpc" "vpc" {
   id = var.vpc_id
 }
 
+data "aws_region" "current" {}
+
 # Certificate
 data "aws_acm_certificate" "cert" {
   domain      = var.domain_name
